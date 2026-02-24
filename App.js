@@ -12,6 +12,7 @@ import CabinetsScreen   from './src/screens/CabinetsScreen';
 import ShelvesScreen    from './src/screens/ShelvesScreen';
 import ItemsScreen      from './src/screens/ItemsScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
+import SettingsScreen   from './src/screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +34,7 @@ export default function App() {
             <Stack.Screen name="Shelves"    component={ShelvesScreen} />
             <Stack.Screen name="Items"      component={ItemsScreen} />
             <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
+            <Stack.Screen name="Settings"   component={SettingsScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </DBProvider>

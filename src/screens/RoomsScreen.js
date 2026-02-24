@@ -33,8 +33,16 @@ export default function RoomsScreen({ navigation }) {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.title}>Stockpile</Text>
-        <Text style={s.sub}>{db.rooms.length} rooms · {db.items.length} items</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.title}>Stockpile</Text>
+          <Text style={s.sub}>{db.rooms.length} rooms · {db.items.length} items</Text>
+        </View>
+        <TouchableOpacity
+          style={s.settingsBtn}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={{ fontSize: 20 }}>⚙️</Text>
+        </TouchableOpacity>
       </View>
 
       <StatBar stats={[
@@ -115,8 +123,13 @@ export default function RoomsScreen({ navigation }) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center' },
   title: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   sub: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  settingsBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
 });
