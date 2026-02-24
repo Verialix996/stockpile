@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stockpile – Inventory Manager</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>📦 Stockpile</h1>
+    <p class="subtitle">Your personal inventory manager</p>
+  </header>
+
+  <main>
+    <!-- Summary bar -->
+    <section class="summary" id="summary">
+      <div class="summary-card">
+        <span class="summary-value" id="total-items">0</span>
+        <span class="summary-label">Total Items</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value" id="total-units">0</span>
+        <span class="summary-label">Total Units</span>
+      </div>
+      <div class="summary-card warning">
+        <span class="summary-value" id="low-stock">0</span>
+        <span class="summary-label">Low Stock</span>
+      </div>
+    </section>
+
+    <!-- Search & filter -->
+    <section class="controls">
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Search items…"
+        aria-label="Search items"
+      />
+      <select id="filter-category" aria-label="Filter by category">
+        <option value="">All Categories</option>
+      </select>
+      <button id="add-btn" class="btn btn-primary">+ Add Item</button>
+    </section>
+
+    <!-- Item list -->
+    <section class="item-list" id="item-list" aria-live="polite">
+      <p class="empty-state" id="empty-state">
+        No items yet. Click <strong>+ Add Item</strong> to get started!
+      </p>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" aria-modal="true" role="dialog" aria-labelledby="modal-title" hidden>
+    <div class="modal">
+      <h2 id="modal-title">Add Item</h2>
+      <form id="item-form" novalidate>
+        <input type="hidden" id="item-id" />
+
+        <div class="form-group">
+          <label for="item-name">Name <span aria-hidden="true">*</span></label>
+          <input type="text" id="item-name" required placeholder="e.g. Canned Beans" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="item-qty">Quantity <span aria-hidden="true">*</span></label>
+            <input type="number" id="item-qty" min="0" required placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label for="item-unit">Unit</label>
+            <input type="text" id="item-unit" placeholder="e.g. cans, kg, pcs" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="item-category">Category</label>
+            <input type="text" id="item-category" placeholder="e.g. Food, Tools" list="category-list" />
+            <datalist id="category-list"></datalist>
+          </div>
+          <div class="form-group">
+            <label for="item-low-threshold">Low-stock alert at</label>
+            <input type="number" id="item-low-threshold" min="0" placeholder="e.g. 5" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="item-notes">Notes</label>
+          <textarea id="item-notes" rows="2" placeholder="Optional notes…"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
