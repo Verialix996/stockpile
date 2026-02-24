@@ -39,6 +39,12 @@ export default function RoomsScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={s.settingsBtn}
+          onPress={() => navigation.navigate('MapsList')}
+        >
+          <Text style={{ fontSize: 20 }}>🗺️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={s.settingsBtn}
           onPress={() => navigation.navigate('Settings')}
         >
           <Text style={{ fontSize: 20 }}>⚙️</Text>
