@@ -1,8 +1,10 @@
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'stockpile_v1';
+const KEY         = 'stockpile_v1';
+const SERVER_URL  = 'http://localhost:3747';
 
-const SEED = {
+export const SEED = {
   rooms: [
     { id: 'r1', name: 'Kitchen' },
     { id: 'r2', name: 'Garage' },
@@ -25,7 +27,34 @@ const SEED = {
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
-export async function loadDB() {
+// ── Web: read/write via local file server ─────────────────────────────────────
+async function loadWeb() {
+  try {
+    const res = await fetch(`${SERVER_URL}/data`);
+    if (!res.ok) throw new Error('Server error');
+    return await res.json();
+  } catch {
+    console.warn('⚠️  Could not reach data server — falling back to localStorage');
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : { ...SEED };
+  }
+}
+
+async function saveWeb(db) {
+  try {
+    await fetch(`${SERVER_URL}/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(db),
+    });
+  } catch {
+    // Fallback: at least save to localStorage so nothing is lost
+    localStorage.setItem(KEY, JSON.stringify(db));
+  }
+}
+
+// ── Mobile: use AsyncStorage ──────────────────────────────────────────────────
+async function loadMobile() {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     return raw ? JSON.parse(raw) : { ...SEED };
@@ -34,8 +63,12 @@ export async function loadDB() {
   }
 }
 
-export async function saveDB(db) {
+async function saveMobile(db) {
   try {
     await AsyncStorage.setItem(KEY, JSON.stringify(db));
   } catch {}
 }
+
+// ── Exports ───────────────────────────────────────────────────────────────────
+export const loadDB = () => Platform.OS === 'web' ? loadWeb()        : loadMobile();
+export const saveDB = (db) => Platform.OS === 'web' ? saveWeb(db)    : saveMobile(db);
