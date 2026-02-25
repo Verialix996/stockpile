@@ -16,12 +16,12 @@ const CATEGORY_EMOJIS = {
 };
 
 export default function RoomsScreen({ navigation }) {
-  const { db, addRoom, deleteRoom, renameRoom } = useDB();
-  const [search, setSearch]             = useState('');
+  const { db, addRoom, deleteRoom, renameRoom, updateItem } = useDB();
+  const [search, setSearch]               = useState('');
   const [activeCategory, setActiveCategory] = useState(null);
-  const [showAdd, setShowAdd]           = useState(false);
-  const [showAddItem, setShowAddItem]   = useState(false);
-  const [renameTarget, setRenameTarget] = useState(null);
+  const [showAdd, setShowAdd]             = useState(false);
+  const [showAddItem, setShowAddItem]     = useState(false);
+  const [renameTarget, setRenameTarget]   = useState(null);
 
   const roomCabinets  = id => db.cabinets.filter(c => c.roomId === id);
   const roomItemCount = id => {
@@ -36,7 +36,6 @@ export default function RoomsScreen({ navigation }) {
     return counts;
   }, [db.items]);
 
-  // Low stock count for badge
   const lowStockCount = useMemo(() =>
     db.items.filter(i => i.minStock != null && i.minStock > 0 && i.quantity <= i.minStock).length
   , [db.items]);
@@ -58,12 +57,24 @@ export default function RoomsScreen({ navigation }) {
         const shelf = db.shelves.find(s => s.id === it.shelfId);
         const cab   = shelf ? db.cabinets.find(c => c.id === shelf.cabinetId) : null;
         const room  = cab   ? db.rooms.find(r => r.id === cab.roomId) : null;
-        return { ...it, _path: [room?.name, cab?.name, shelf?.name].filter(Boolean).join(' › ') };
+        return {
+          ...it,
+          _path:    [room?.name, cab?.name, shelf?.name].filter(Boolean).join(' › '),
+          _roomId:  room?.id,
+          _roomName: room?.name,
+          _cabId:   cab?.id,
+          _cabName: cab?.name,
+          _shelf:   shelf,
+        };
       });
   }, [search, activeCategory, db.items, db.shelves, db.cabinets, db.rooms]);
 
   const handleCategoryPress = (cat) => setActiveCategory(prev => prev === cat ? null : cat);
   const clearFilters = () => { setSearch(''); setActiveCategory(null); };
+
+  // Inline qty helpers
+  const dec = (item) => { if (item.quantity > 0) updateItem(item.id, { quantity: item.quantity - 1 }); };
+  const inc = (item) => updateItem(item.id, { quantity: item.quantity + 1 });
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -74,7 +85,7 @@ export default function RoomsScreen({ navigation }) {
           <Text style={s.sub}>{db.rooms.length} rooms · {db.items.length} items</Text>
         </View>
 
-        {/* Low stock alert bell */}
+        {/* Low stock bell */}
         <TouchableOpacity
           style={[s.iconBtn, lowStockCount > 0 && s.iconBtnAlert]}
           onPress={() => navigation.navigate('LowStock')}
@@ -102,37 +113,27 @@ export default function RoomsScreen({ navigation }) {
         { label: 'Items',    value: db.items.length },
       ]} />
 
-      {/* Search bar */}
       <SearchBar value={search} onChangeText={setSearch} placeholder="Search items by name, category, notes…" />
 
-      {/* Category filter chips */}
+      {/* Category chips */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.chipScroll}
-        contentContainerStyle={s.chipRow}
+        horizontal showsHorizontalScrollIndicator={false}
+        style={s.chipScroll} contentContainerStyle={s.chipRow}
       >
-        {/* "All" chip */}
         <TouchableOpacity
           style={[s.chip, activeCategory === null && s.chipActive]}
           onPress={() => setActiveCategory(null)}
         >
           <Text style={[s.chipText, activeCategory === null && s.chipTextActive]}>All</Text>
-          <Text style={[s.chipCount, activeCategory === null && s.chipCountActive]}>
-            {db.items.length}
-          </Text>
+          <Text style={[s.chipCount, activeCategory === null && s.chipCountActive]}>{db.items.length}</Text>
         </TouchableOpacity>
 
         {CATEGORIES.map(cat => {
           const count = categoryCounts[cat] || 0;
-          if (count === 0) return null; // hide empty categories
+          if (count === 0) return null;
           const isActive = activeCategory === cat;
           return (
-            <TouchableOpacity
-              key={cat}
-              style={[s.chip, isActive && s.chipActive]}
-              onPress={() => handleCategoryPress(cat)}
-            >
+            <TouchableOpacity key={cat} style={[s.chip, isActive && s.chipActive]} onPress={() => handleCategoryPress(cat)}>
               <Text style={s.chipEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
               <Text style={[s.chipText, isActive && s.chipTextActive]}>{cat}</Text>
               <Text style={[s.chipCount, isActive && s.chipCountActive]}>{count}</Text>
@@ -141,7 +142,7 @@ export default function RoomsScreen({ navigation }) {
         })}
       </ScrollView>
 
-      {/* Active filter summary + clear */}
+      {/* Filter summary */}
       {isFiltering && (
         <View style={s.filterBar}>
           <Text style={s.filterBarText}>
@@ -155,7 +156,7 @@ export default function RoomsScreen({ navigation }) {
         </View>
       )}
 
-      {/* Results or room list */}
+      {/* Search results OR room list */}
       {isFiltering ? (
         <FlatList
           data={searchResults}
@@ -164,30 +165,66 @@ export default function RoomsScreen({ navigation }) {
           ListEmptyComponent={
             <EmptyState
               icon={CATEGORY_EMOJIS[activeCategory] || '🔍'}
-              text={activeCategory
-                ? `No items in ${activeCategory}`
-                : `No items matching "${search}"`}
+              text={activeCategory ? `No items in ${activeCategory}` : `No items matching "${search}"`}
             />
           }
           renderItem={({ item }) => {
-            const shelf = db.shelves.find(s => s.id === item.shelfId);
-            const cab   = shelf ? db.cabinets.find(c => c.id === shelf.cabinetId) : null;
+            const isOut    = item.quantity === 0;
+            const isLow    = item.minStock != null && item.minStock > 0 && item.quantity <= item.minStock;
+            const qtyColor = isOut ? colors.danger : isLow ? colors.used : colors.text;
+
             return (
-              <ListCard
-                iconKey="box"
-                name={item.name}
-                meta={item._path}
-                rightText={`×${item.quantity}`}
-                onPress={() => navigation.navigate('ItemDetail', {
-                  roomId: cab?.roomId,
-                  roomName: db.rooms.find(r => r.id === cab?.roomId)?.name,
-                  cabinetId: cab?.id,
-                  cabinetName: cab?.name,
-                  shelfId: item.shelfId,
-                  shelfName: shelf?.name,
-                  itemId: item.id,
-                })}
-              />
+              <View style={[s.itemCard, isOut && s.itemCardOut, isLow && !isOut && s.itemCardLow]}>
+                {/* Colored left strip for low/out */}
+                {(isOut || isLow) && (
+                  <View style={[s.strip, { backgroundColor: isOut ? colors.danger : colors.used }]} />
+                )}
+
+                {/* Tap to open detail */}
+                <TouchableOpacity
+                  style={s.itemCardMain}
+                  onPress={() => navigation.navigate('ItemDetail', {
+                    roomId:      item._roomId,
+                    roomName:    item._roomName,
+                    cabinetId:   item._cabId,
+                    cabinetName: item._cabName,
+                    shelfId:     item.shelfId,
+                    shelfName:   item._shelf?.name,
+                    itemId:      item.id,
+                  })}
+                  activeOpacity={0.7}
+                >
+                  <View style={s.itemIcon}><Text style={{ fontSize: 18 }}>📦</Text></View>
+                  <View style={s.itemBody}>
+                    <Text style={s.itemName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={s.itemPath} numberOfLines={1}>{item._path}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* +/- quantity controls */}
+                <View style={s.qtyBlock}>
+                  <TouchableOpacity
+                    style={[s.qtyBtn, s.qtyBtnDec, item.quantity <= 0 && s.qtyBtnDisabled]}
+                    onPress={() => dec(item)}
+                    disabled={item.quantity <= 0}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                  >
+                    <Text style={s.qtyBtnText}>−</Text>
+                  </TouchableOpacity>
+
+                  <Text style={[s.qtyValue, { color: qtyColor }]}>{item.quantity}</Text>
+
+                  <TouchableOpacity
+                    style={[s.qtyBtn, s.qtyBtnInc]}
+                    onPress={() => inc(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}
+                  >
+                    <Text style={s.qtyBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={s.itemChevron}>›</Text>
+              </View>
             );
           }}
         />
@@ -258,7 +295,6 @@ const s = StyleSheet.create({
   },
   badgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
 
-  // Category chips
   chipScroll: { flexGrow: 0, marginTop: 10 },
   chipRow: { paddingHorizontal: 20, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: {
@@ -277,7 +313,6 @@ const s = StyleSheet.create({
   },
   chipCountActive: { color: colors.accent2, backgroundColor: '#0f1f2e' },
 
-  // Active filter bar
   filterBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginHorizontal: 20, marginTop: 10,
@@ -292,6 +327,42 @@ const s = StyleSheet.create({
   clearBtnText: { fontSize: 12, color: colors.danger, fontWeight: '600' },
 
   list: { paddingHorizontal: 20, paddingBottom: 120 },
+
+  // Search result item card
+  itemCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+  },
+  itemCardOut: { borderColor: '#4a1a1a', backgroundColor: '#150d0d' },
+  itemCardLow: { borderColor: '#3a2800' },
+  strip: { width: 3, alignSelf: 'stretch' },
+  itemCardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
+  itemIcon: {
+    width: 36, height: 36, borderRadius: 9,
+    backgroundColor: '#1e2233', alignItems: 'center', justifyContent: 'center',
+  },
+  itemBody: { flex: 1, minWidth: 0 },
+  itemName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  itemPath: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  itemChevron: { fontSize: 18, color: colors.muted, paddingRight: 10 },
+
+  // Qty controls (same pattern as ItemsScreen)
+  qtyBlock: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.surface, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border,
+    marginRight: 4, paddingVertical: 3,
+  },
+  qtyBtn: {
+    width: 30, height: 30,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
+  qtyBtnDec: { borderRightWidth: 1, borderRightColor: colors.border },
+  qtyBtnInc: { borderLeftWidth: 1, borderLeftColor: colors.border },
+  qtyBtnDisabled: { opacity: 0.3 },
+  qtyBtnText: { fontSize: 20, color: colors.accent, lineHeight: 24, fontWeight: '300' },
+  qtyValue: { fontSize: 15, fontWeight: '800', minWidth: 30, textAlign: 'center' },
 
   // FAB row
   fabRow: {
