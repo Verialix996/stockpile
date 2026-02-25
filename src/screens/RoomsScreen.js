@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
-import { ListCard, SectionLabel, StatBar, SearchBar, EmptyState, FAB } from '../components/UI';
+import { ListCard, SectionLabel, StatBar, SearchBar, EmptyState } from '../components/UI';
 import { NameModal } from '../components/Modals';
+import { GlobalAddItemModal } from '../components/GlobalAddItemModal';
 import { colors } from '../utils/theme';
 
 export default function RoomsScreen({ navigation }) {
   const { db, addRoom, deleteRoom, renameRoom } = useDB();
-  const [search, setSearch] = useState('');
-  const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch]           = useState('');
+  const [showAdd, setShowAdd]         = useState(false);
+  const [showAddItem, setShowAddItem] = useState(false);
   const [renameTarget, setRenameTarget] = useState(null);
 
   const roomCabinets = id => db.cabinets.filter(c => c.roomId === id);
@@ -19,7 +21,6 @@ export default function RoomsScreen({ navigation }) {
     return db.items.filter(i => sids.includes(i.shelfId)).length;
   };
 
-  // Global search
   const searchResults = search.trim().length > 1 ? db.items.filter(it =>
     it.name.toLowerCase().includes(search.toLowerCase()) ||
     (it.category || '').toLowerCase().includes(search.toLowerCase())
@@ -32,21 +33,16 @@ export default function RoomsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
       <View style={s.header}>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>Stockpile</Text>
           <Text style={s.sub}>{db.rooms.length} rooms · {db.items.length} items</Text>
         </View>
-        <TouchableOpacity
-          style={s.settingsBtn}
-          onPress={() => navigation.navigate('MapsList')}
-        >
+        <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('MapsList')}>
           <Text style={{ fontSize: 20 }}>🗺️</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={s.settingsBtn}
-          onPress={() => navigation.navigate('Settings')}
-        >
+        <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('Settings')}>
           <Text style={{ fontSize: 20 }}>⚙️</Text>
         </TouchableOpacity>
       </View>
@@ -78,8 +74,10 @@ export default function RoomsScreen({ navigation }) {
                   meta={item._path}
                   rightText={`×${item.quantity}`}
                   onPress={() => navigation.navigate('ItemDetail', {
-                    roomId: cab?.roomId, cabinetId: cab?.id,
-                    shelfId: item.shelfId, itemId: item.id,
+                    roomId: cab?.roomId, roomName: db.rooms.find(r => r.id === cab?.roomId)?.name,
+                    cabinetId: cab?.id,  cabinetName: cab?.name,
+                    shelfId: item.shelfId, shelfName: shelf?.name,
+                    itemId: item.id,
                   })}
                 />
               );
@@ -108,7 +106,15 @@ export default function RoomsScreen({ navigation }) {
         </>
       )}
 
-      <FAB onPress={() => setShowAdd(true)} />
+      {/* FAB row: Add Room + Add Item */}
+      <View style={s.fabRow}>
+        <TouchableOpacity style={s.fabSecondary} onPress={() => setShowAdd(true)} activeOpacity={0.85}>
+          <Text style={s.fabSecondaryText}>🏠 Room</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.fabPrimary} onPress={() => setShowAddItem(true)} activeOpacity={0.85}>
+          <Text style={s.fabPrimaryText}>＋ Add Item</Text>
+        </TouchableOpacity>
+      </View>
 
       <NameModal
         visible={showAdd}
@@ -123,19 +129,44 @@ export default function RoomsScreen({ navigation }) {
         onSave={name => renameRoom(renameTarget.id, name)}
         onClose={() => setRenameTarget(null)}
       />
+      <GlobalAddItemModal
+        visible={showAddItem}
+        onClose={() => setShowAddItem(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center' },
+  header: {
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
   title: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  sub: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  settingsBtn: {
+  sub:   { fontSize: 12, color: colors.muted, marginTop: 2 },
+  iconBtn: {
     width: 38, height: 38, borderRadius: 10,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  list: { paddingHorizontal: 20, paddingBottom: 100 },
+  list: { paddingHorizontal: 20, paddingBottom: 120 },
+
+  // FAB row
+  fabRow: {
+    position: 'absolute', bottom: 28, right: 20, left: 20,
+    flexDirection: 'row', gap: 10, justifyContent: 'flex-end',
+  },
+  fabPrimary: {
+    backgroundColor: colors.accent, borderRadius: 24,
+    paddingHorizontal: 22, paddingVertical: 14,
+    shadowColor: colors.accent, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
+  },
+  fabPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  fabSecondary: {
+    backgroundColor: colors.card, borderRadius: 24,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 18, paddingVertical: 14,
+  },
+  fabSecondaryText: { color: colors.text, fontWeight: '600', fontSize: 14 },
 });
