@@ -70,7 +70,7 @@ export function NameModal({ visible, title, initialValue = '', onSave, onClose }
 
 // ── Item modal ────────────────────────────────────────────────────────────────
 export function ItemModal({ visible, item, onSave, onClose }) {
-  const blank = { name: '', category: 'Food', quantity: 1, condition: 'Good', expiry: '', notes: '', photo: null };
+  const blank = { name: '', category: 'Food', quantity: 1, condition: 'Good', expiry: '', notes: '', photo: null, minStock: null };
   const [form, setForm]       = useState(item || blank);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
@@ -219,6 +219,46 @@ export function ItemModal({ visible, item, onSave, onClose }) {
               multiline
             />
 
+            {/* Low stock alert */}
+            <View style={s.alertRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertTitle}>🔔 Low Stock Alert</Text>
+                <Text style={s.alertSub}>Notify when quantity drops to or below this number</Text>
+              </View>
+              <TouchableOpacity
+                style={[s.alertToggle, form.minStock != null && s.alertToggleOn]}
+                onPress={() => set('minStock', form.minStock != null ? null : 1)}
+              >
+                <Text style={[s.alertToggleText, form.minStock != null && s.alertToggleTextOn]}>
+                  {form.minStock != null ? 'ON' : 'OFF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {form.minStock != null && (
+              <View style={s.alertThresholdRow}>
+                <Text style={s.alertThresholdLabel}>Alert when quantity ≤</Text>
+                <TouchableOpacity
+                  style={s.alertStepBtn}
+                  onPress={() => set('minStock', Math.max(1, (form.minStock || 1) - 1))}
+                >
+                  <Text style={s.alertStepBtnText}>−</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={s.alertThresholdInput}
+                  value={String(form.minStock ?? 1)}
+                  onChangeText={v => set('minStock', Math.max(1, parseInt(v) || 1))}
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+                <TouchableOpacity
+                  style={s.alertStepBtn}
+                  onPress={() => set('minStock', (form.minStock || 1) + 1)}
+                >
+                  <Text style={s.alertStepBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={[s.btnRow, { marginBottom: 8 }]}>
               <TouchableOpacity style={[s.btn, s.btnGhost]} onPress={onClose}>
                 <Text style={s.btnGhostText}>Cancel</Text>
@@ -294,4 +334,39 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.4 },
   btnGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   btnGhostText: { color: colors.muted, fontSize: 14, fontWeight: '600' },
+
+  // Low stock alert
+  alertRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, padding: 12, marginBottom: 8, gap: 10,
+  },
+  alertTitle: { fontSize: 14, fontWeight: '600', color: colors.text },
+  alertSub:   { fontSize: 11, color: colors.muted, marginTop: 2 },
+  alertToggle: {
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  alertToggleOn: { borderColor: colors.good, backgroundColor: '#0d2b1a' },
+  alertToggleText: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  alertToggleTextOn: { color: colors.good },
+  alertThresholdRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#0d2b1a', borderWidth: 1, borderColor: colors.good,
+    borderRadius: 12, padding: 10, marginBottom: 14, gap: 10,
+  },
+  alertThresholdLabel: { flex: 1, fontSize: 13, color: colors.text },
+  alertStepBtn: {
+    width: 34, height: 34, borderRadius: 8,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  alertStepBtnText: { fontSize: 20, color: colors.text, lineHeight: 24 },
+  alertThresholdInput: {
+    width: 52, textAlign: 'center',
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.good,
+    borderRadius: 8, padding: 6, color: colors.good,
+    fontSize: 16, fontWeight: '700',
+  },
 });

@@ -16,6 +16,7 @@ import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import SettingsScreen   from './src/screens/SettingsScreen';
 import MapsListScreen   from './src/screens/MapsListScreen';
 import MapScreen        from './src/screens/MapScreen';
+import LowStockScreen   from './src/screens/LowStockScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,6 +42,7 @@ export default function App() {
               <Stack.Screen name="Settings"   component={SettingsScreen} />
               <Stack.Screen name="MapsList"   component={MapsListScreen} />
               <Stack.Screen name="Map"        component={MapScreen} />
+              <Stack.Screen name="LowStock"   component={LowStockScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </MapProvider>

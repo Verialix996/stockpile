@@ -251,6 +251,25 @@ export default function ItemDetailScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Low stock alert status */}
+        {item.minStock != null && item.minStock > 0 && (
+          <View style={[s.alertStatus, item.quantity <= item.minStock ? s.alertStatusActive : s.alertStatusOk]}>
+            <Text style={s.alertStatusIcon}>
+              {item.quantity === 0 ? '🔴' : item.quantity <= item.minStock ? '🟡' : '🟢'}
+            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.alertStatusTitle}>
+                {item.quantity === 0 ? 'Out of stock'
+                  : item.quantity <= item.minStock ? 'Low stock alert triggered'
+                  : 'Stock OK'}
+              </Text>
+              <Text style={s.alertStatusSub}>
+                Minimum set to {item.minStock} · Current: {item.quantity}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {item.notes ? (
           <View style={s.notes}>
             <Text style={s.chipLabel}>NOTES</Text>
@@ -338,4 +357,14 @@ const s = StyleSheet.create({
     borderColor: colors.border, borderRadius: 10, padding: 12,
   },
   notesText: { fontSize: 14, color: colors.text, marginTop: 4, lineHeight: 20 },
+  alertStatus: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderRadius: 10, padding: 12, marginBottom: 14,
+    borderWidth: 1,
+  },
+  alertStatusActive: { backgroundColor: '#1a100a', borderColor: colors.used },
+  alertStatusOk:     { backgroundColor: '#0d1a0d', borderColor: colors.good },
+  alertStatusIcon: { fontSize: 18 },
+  alertStatusTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+  alertStatusSub:   { fontSize: 11, color: colors.muted, marginTop: 2 },
 });

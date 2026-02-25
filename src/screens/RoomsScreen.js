@@ -18,7 +18,7 @@ const CATEGORY_EMOJIS = {
 export default function RoomsScreen({ navigation }) {
   const { db, addRoom, deleteRoom, renameRoom } = useDB();
   const [search, setSearch]             = useState('');
-  const [activeCategory, setActiveCategory] = useState(null); // null = all
+  const [activeCategory, setActiveCategory] = useState(null);
   const [showAdd, setShowAdd]           = useState(false);
   const [showAddItem, setShowAddItem]   = useState(false);
   const [renameTarget, setRenameTarget] = useState(null);
@@ -30,14 +30,17 @@ export default function RoomsScreen({ navigation }) {
     return db.items.filter(i => sids.includes(i.shelfId)).length;
   };
 
-  // Count items per category for the badge
   const categoryCounts = useMemo(() => {
     const counts = {};
     db.items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
     return counts;
   }, [db.items]);
 
-  // Show search/filter results whenever there's a text query OR an active category
+  // Low stock count for badge
+  const lowStockCount = useMemo(() =>
+    db.items.filter(i => i.minStock != null && i.minStock > 0 && i.quantity <= i.minStock).length
+  , [db.items]);
+
   const isFiltering = search.trim().length > 0 || activeCategory !== null;
 
   const searchResults = useMemo(() => {
@@ -59,10 +62,7 @@ export default function RoomsScreen({ navigation }) {
       });
   }, [search, activeCategory, db.items, db.shelves, db.cabinets, db.rooms]);
 
-  const handleCategoryPress = (cat) => {
-    setActiveCategory(prev => prev === cat ? null : cat); // toggle
-  };
-
+  const handleCategoryPress = (cat) => setActiveCategory(prev => prev === cat ? null : cat);
   const clearFilters = () => { setSearch(''); setActiveCategory(null); };
 
   return (
@@ -73,6 +73,20 @@ export default function RoomsScreen({ navigation }) {
           <Text style={s.title}>Stockpile</Text>
           <Text style={s.sub}>{db.rooms.length} rooms · {db.items.length} items</Text>
         </View>
+
+        {/* Low stock alert bell */}
+        <TouchableOpacity
+          style={[s.iconBtn, lowStockCount > 0 && s.iconBtnAlert]}
+          onPress={() => navigation.navigate('LowStock')}
+        >
+          <Text style={{ fontSize: 18 }}>🔔</Text>
+          {lowStockCount > 0 && (
+            <View style={s.badge}>
+              <Text style={s.badgeText}>{lowStockCount > 99 ? '99+' : lowStockCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('MapsList')}>
           <Text style={{ fontSize: 20 }}>🗺️</Text>
         </TouchableOpacity>
@@ -235,6 +249,14 @@ const s = StyleSheet.create({
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
+  iconBtnAlert: { borderColor: colors.used, backgroundColor: '#2b1e00' },
+  badge: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: colors.danger, borderRadius: 8,
+    minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3, borderWidth: 1.5, borderColor: colors.bg,
+  },
+  badgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
 
   // Category chips
   chipScroll: { flexGrow: 0, marginTop: 10 },
