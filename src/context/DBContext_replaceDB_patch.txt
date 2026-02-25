@@ -1,0 +1,14 @@
+In src/context/DBContext.js, add this function inside DBProvider (alongside addRoom, addItem, etc.):
+
+  const replaceDB = (newDB) => update(newDB);
+
+And add it to the Provider value:
+
+  <DBContext.Provider value={{
+    db,
+    addRoom, renameRoom, deleteRoom,
+    addCabinet, renameCabinet, deleteCabinet,
+    addShelf, renameShelf, deleteShelf,
+    addItem, updateItem, deleteItem,
+    replaceDB,   // <-- add this line
+  }}>

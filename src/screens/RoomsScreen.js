@@ -8,6 +8,8 @@ import { useDB } from '../context/DBContext';
 import { ListCard, SectionLabel, StatBar, SearchBar, EmptyState } from '../components/UI';
 import { NameModal } from '../components/Modals';
 import { GlobalAddItemModal } from '../components/GlobalAddItemModal';
+import { ZeroQtyModal } from '../components/ZeroQtyModal';
+import { useQuantityControl } from '../hooks/useQuantityControl';
 import { colors, CATEGORIES } from '../utils/theme';
 
 const CATEGORY_EMOJIS = {
@@ -17,6 +19,7 @@ const CATEGORY_EMOJIS = {
 
 export default function RoomsScreen({ navigation }) {
   const { db, addRoom, deleteRoom, renameRoom, updateItem } = useDB();
+  const { inc, dec, zeroTarget, handleRemove, handleKeep, handleCancel } = useQuantityControl();
   const [search, setSearch]               = useState('');
   const [activeCategory, setActiveCategory] = useState(null);
   const [showAdd, setShowAdd]             = useState(false);
@@ -71,10 +74,6 @@ export default function RoomsScreen({ navigation }) {
 
   const handleCategoryPress = (cat) => setActiveCategory(prev => prev === cat ? null : cat);
   const clearFilters = () => { setSearch(''); setActiveCategory(null); };
-
-  // Inline qty helpers
-  const dec = (item) => { if (item.quantity > 0) updateItem(item.id, { quantity: item.quantity - 1 }); };
-  const inc = (item) => updateItem(item.id, { quantity: item.quantity + 1 });
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -269,6 +268,13 @@ export default function RoomsScreen({ navigation }) {
         onClose={() => setRenameTarget(null)}
       />
       <GlobalAddItemModal visible={showAddItem} onClose={() => setShowAddItem(false)} />
+
+      <ZeroQtyModal
+        item={zeroTarget}
+        onRemove={handleRemove}
+        onKeep={handleKeep}
+        onCancel={handleCancel}
+      />
     </SafeAreaView>
   );
 }

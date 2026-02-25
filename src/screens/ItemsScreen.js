@@ -7,11 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { SectionLabel, EmptyState, FAB, Breadcrumb } from '../components/UI';
 import { ItemModal } from '../components/Modals';
+import { ZeroQtyModal } from '../components/ZeroQtyModal';
+import { useQuantityControl } from '../hooks/useQuantityControl';
 import { colors, COND_COLOR } from '../utils/theme';
 
 export default function ItemsScreen({ navigation, route }) {
   const { roomId, roomName, cabinetId, cabinetName, shelfId, shelfName } = route.params;
   const { db, addItem, updateItem, deleteItem } = useDB();
+  const { inc, dec, zeroTarget, handleRemove, handleKeep, handleCancel } = useQuantityControl();
   const [showAdd, setShowAdd]           = useState(false);
   const [editItem, setEditItem]         = useState(null);
   // Quick-set modal: tap the number to type an exact value
@@ -19,11 +22,6 @@ export default function ItemsScreen({ navigation, route }) {
   const [quickVal, setQuickVal]         = useState('');
 
   const items = db.items.filter(i => i.shelfId === shelfId);
-
-  const dec = (item) => {
-    if (item.quantity > 0) updateItem(item.id, { quantity: item.quantity - 1 });
-  };
-  const inc = (item) => updateItem(item.id, { quantity: item.quantity + 1 });
 
   const openQuickSet = (item) => {
     setQuickSet(item);
@@ -139,6 +137,14 @@ export default function ItemsScreen({ navigation, route }) {
         item={editItem}
         onSave={form => { updateItem(editItem.id, form); setEditItem(null); }}
         onClose={() => setEditItem(null)}
+      />
+
+      {/* Zero quantity dialog */}
+      <ZeroQtyModal
+        item={zeroTarget}
+        onRemove={handleRemove}
+        onKeep={handleKeep}
+        onCancel={handleCancel}
       />
 
       {/* Quick-set exact quantity modal */}
