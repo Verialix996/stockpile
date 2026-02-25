@@ -1,9 +1,10 @@
 // server.js — run alongside "npm run web" to persist data to a local JSON file
 // Usage: node server.js   (in a separate terminal)
 
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
+const http  = require('http');
+const https = require('https');
+const fs    = require('fs');
+const path  = require('path');
 
 const PORT      = 3747;
 const DATA_FILE = path.join(__dirname, 'stockpile-data.json');
@@ -66,7 +67,6 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
       try {
-        // Validate it's real JSON before saving
         JSON.parse(body);
         fs.writeFileSync(DATA_FILE, body);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -79,6 +79,53 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // POST /claude — proxy to Anthropic API (avoids browser CORS block)
+  if (req.method === 'POST' && req.url === '/claude') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { apiKey, payload } = JSON.parse(body);
+        if (!apiKey) { res.writeHead(400); res.end('Missing apiKey'); return; }
+
+        const postData = JSON.stringify(payload);
+        const options = {
+          hostname: 'api.anthropic.com',
+          path: '/v1/messages',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Length': Buffer.byteLength(postData),
+          },
+        };
+
+        const proxyReq = https.request(options, (proxyRes) => {
+          let data = '';
+          proxyRes.on('data', chunk => { data += chunk; });
+          proxyRes.on('end', () => {
+            console.log(`Claude API response: ${proxyRes.statusCode}`, data.slice(0, 300));
+            res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
+            res.end(data);
+          });
+        });
+
+        proxyReq.on('error', (e) => {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: { message: e.message } }));
+        });
+
+        proxyReq.write(postData);
+        proxyReq.end();
+      } catch (e) {
+        res.writeHead(400);
+        res.end('Invalid request');
+      }
+    });
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
@@ -86,5 +133,6 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`\n✅ Stockpile data server running at http://localhost:${PORT}`);
   console.log(`📁 Data file: ${DATA_FILE}`);
+  console.log(`🤖 Claude API proxy ready at http://localhost:${PORT}/claude`);
   console.log(`\nKeep this terminal open while using the app.\n`);
 });
