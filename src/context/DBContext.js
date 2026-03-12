@@ -48,8 +48,8 @@ export function DBProvider({ children }) {
     });
   };
 
-  const addShelf = (cabinetId, name) =>
-    update({ ...db, shelves: [...db.shelves, { id: uid(), cabinetId, name }] });
+  const addShelf = (cabinetId, name, containerType = null) =>
+    update({ ...db, shelves: [...db.shelves, { id: uid(), cabinetId, name, containerType: containerType || null }] });
 
   const renameShelf = (id, name) =>
     update({ ...db, shelves: db.shelves.map(s => s.id === id ? { ...s, name } : s) });
@@ -64,11 +64,40 @@ export function DBProvider({ children }) {
   const addItem = (shelfId, form) =>
     update({ ...db, items: [...db.items, { id: uid(), shelfId, photo: null, ...form }] });
 
+  const addItemsBatch = (shelfId, forms) => {
+    const newItems = forms.map(form => ({ id: uid(), shelfId, photo: null, quantity: 1, condition: 'Good', expiry: '', notes: '', ...form }));
+    update({ ...db, items: [...db.items, ...newItems] });
+  };
+
+  // Create a full room structure from a scan result in one atomic update
+  const createFromScan = ({ roomName, cabinets: cabData }) => {
+    const newRoomId = uid();
+    const newRoom = { id: newRoomId, name: roomName };
+    const newCabinets = [];
+    const newShelves  = [];
+    cabData.forEach(cab => {
+      const cabId = uid();
+      newCabinets.push({ id: cabId, roomId: newRoomId, name: cab.name });
+      (cab.shelves || []).forEach(shelfName => {
+        newShelves.push({ id: uid(), cabinetId: cabId, name: shelfName, containerType: null });
+      });
+    });
+    update({
+      ...db,
+      rooms:    [...db.rooms,    newRoom],
+      cabinets: [...db.cabinets, ...newCabinets],
+      shelves:  [...db.shelves,  ...newShelves],
+    });
+    return newRoomId;
+  };
+
   const updateItem = (id, form) =>
     update({ ...db, items: db.items.map(i => i.id === id ? { ...i, ...form } : i) });
 
   const deleteItem = (id) =>
     update({ ...db, items: db.items.filter(i => i.id !== id) });
+
+  const replaceDB = (newDB) => update(newDB);
 
   if (!db) return null;
 
@@ -78,7 +107,9 @@ export function DBProvider({ children }) {
       addRoom, renameRoom, deleteRoom,
       addCabinet, renameCabinet, deleteCabinet,
       addShelf, renameShelf, deleteShelf,
-      addItem, updateItem, deleteItem,
+      addItem, addItemsBatch, updateItem, deleteItem,
+      createFromScan,
+      replaceDB,
     }}>
       {children}
     </DBContext.Provider>

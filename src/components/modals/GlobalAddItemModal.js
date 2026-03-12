@@ -5,9 +5,9 @@ import {
   ActivityIndicator, Animated,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useDB } from '../context/DBContext';
-import { colors, radius, CONDITIONS, CATEGORIES } from '../utils/theme';
-import { loadApiKey, identifyItemWithClaude } from '../utils/apiKey';
+import { useDB } from '../../context/DBContext';
+import { colors, radius, CONDITIONS, CATEGORIES } from '../../utils/theme';
+import { loadApiKey, identifyItemWithClaude } from '../../utils/apiKey';
 
 // ── Small reusable bits ───────────────────────────────────────────────────────
 function Label({ text }) {

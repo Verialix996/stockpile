@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 // ── CSV column definition ─────────────────────────────────────────────────────
 export const CSV_HEADERS = [
@@ -62,9 +64,10 @@ export function buildCSV(db) {
   return lines.join('\n');
 }
 
-// ── Trigger browser download ──────────────────────────────────────────────────
-export function downloadCSV(csvString) {
+// ── Export CSV (web: download, mobile: share sheet) ───────────────────────────
+export async function downloadCSV(csvString) {
   const filename = `stockpile-${new Date().toISOString().slice(0,10)}.csv`;
+
   if (Platform.OS === 'web') {
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
@@ -76,7 +79,12 @@ export function downloadCSV(csvString) {
     URL.revokeObjectURL(url);
     return true;
   }
-  return false;
+
+  // Mobile: write to temp file then open share sheet
+  const fileUri = FileSystem.cacheDirectory + filename;
+  await FileSystem.writeAsStringAsync(fileUri, csvString, { encoding: 'utf8' });
+  await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Stockpile Data' });
+  return true;
 }
 
 // ── Parse CSV text → array of row objects ────────────────────────────────────

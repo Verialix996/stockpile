@@ -1,8 +1,7 @@
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadServerUrl } from './serverUrl';
 
-const KEY         = 'stockpile_v1';
-const SERVER_URL  = 'http://localhost:3747';
+const KEY = 'stockpile_v1';
 
 export const SEED = {
   rooms: [
@@ -27,48 +26,37 @@ export const SEED = {
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
-// ── Web: read/write via local file server ─────────────────────────────────────
-async function loadWeb() {
+// ── Load from server, fall back to local storage ───────────────────────────────
+export async function loadDB() {
+  const serverUrl = await loadServerUrl();
   try {
-    const res = await fetch(`${SERVER_URL}/data`);
+    const res = await fetch(`${serverUrl}/data`);
     if (!res.ok) throw new Error('Server error');
     return await res.json();
   } catch {
-    console.warn('⚠️  Could not reach data server — falling back to localStorage');
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : { ...SEED };
+    console.warn('⚠️  Could not reach data server — falling back to local storage');
+    try {
+      const raw = await AsyncStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : { ...SEED };
+    } catch {
+      return { ...SEED };
+    }
   }
 }
 
-async function saveWeb(db) {
+// ── Save to server, fall back to local storage ────────────────────────────────
+export async function saveDB(db) {
+  const serverUrl = await loadServerUrl();
   try {
-    await fetch(`${SERVER_URL}/data`, {
+    await fetch(`${serverUrl}/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(db),
     });
   } catch {
-    // Fallback: at least save to localStorage so nothing is lost
-    localStorage.setItem(KEY, JSON.stringify(db));
+    // Fallback: save locally so nothing is lost
+    try {
+      await AsyncStorage.setItem(KEY, JSON.stringify(db));
+    } catch {}
   }
 }
-
-// ── Mobile: use AsyncStorage ──────────────────────────────────────────────────
-async function loadMobile() {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : { ...SEED };
-  } catch {
-    return { ...SEED };
-  }
-}
-
-async function saveMobile(db) {
-  try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(db));
-  } catch {}
-}
-
-// ── Exports ───────────────────────────────────────────────────────────────────
-export const loadDB = () => Platform.OS === 'web' ? loadWeb()        : loadMobile();
-export const saveDB = (db) => Platform.OS === 'web' ? saveWeb(db)    : saveMobile(db);

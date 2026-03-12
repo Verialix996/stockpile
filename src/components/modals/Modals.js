@@ -5,8 +5,66 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, radius, CONDITIONS, CATEGORIES } from '../utils/theme';
-import { loadApiKey, identifyItemWithClaude } from '../utils/apiKey';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { colors, radius, CONDITIONS, CATEGORIES } from '../../utils/theme';
+import { loadApiKey, identifyItemWithClaude } from '../../utils/apiKey';
+
+function ExpiryPicker({ value, onChange }) {
+  const [show, setShow] = useState(false);
+  const date = value ? new Date(value + 'T00:00:00') : new Date();
+
+  if (Platform.OS === 'web') {
+    return (
+      <TextInput
+        style={s.input}
+        value={value}
+        onChangeText={onChange}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.muted}
+        keyboardType="numbers-and-punctuation"
+      />
+    );
+  }
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[s.input, { justifyContent: 'center' }]}
+        onPress={() => setShow(true)}
+      >
+        <Text style={{ color: value ? colors.text : colors.muted, fontSize: 15 }}>
+          {value || 'No expiry date'}
+        </Text>
+      </TouchableOpacity>
+      {show && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            setShow(Platform.OS === 'ios');
+            if (event.type === 'set' && selectedDate) {
+              onChange(selectedDate.toISOString().split('T')[0]);
+              if (Platform.OS === 'android') setShow(false);
+            } else if (event.type === 'dismissed') {
+              setShow(false);
+            }
+          }}
+        />
+      )}
+      {show && Platform.OS === 'ios' && (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginBottom: 8 }}>
+          <TouchableOpacity onPress={() => { onChange(''); setShow(false); }}>
+            <Text style={{ color: colors.danger, fontWeight: '600' }}>Clear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShow(false)}>
+            <Text style={{ color: colors.accent, fontWeight: '600' }}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </>
+  );
+}
 
 function Label({ text }) {
   return <Text style={s.label}>{text.toUpperCase()}</Text>;
@@ -201,13 +259,8 @@ export function ItemModal({ visible, item, onSave, onClose }) {
             <Label text="Category" />
             <SelectRow options={CATEGORIES} value={form.category} onChange={v => set('category', v)} />
 
-            <Label text="Expiry Date (YYYY-MM-DD)" />
-            <Input
-              value={form.expiry}
-              onChangeText={v => set('expiry', v)}
-              placeholder="e.g. 2026-12-31"
-              keyboardType="numbers-and-punctuation"
-            />
+            <Label text="Expiry Date" />
+            <ExpiryPicker value={form.expiry} onChange={v => set('expiry', v)} />
 
             <Label text="Notes" />
             <TextInput

@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { ListCard, SectionLabel, EmptyState, FAB, Breadcrumb } from '../components/UI';
-import { NameModal } from '../components/Modals';
+import { NameModal } from '../components/modals/Modals';
 import { colors } from '../utils/theme';
 
 export default function CabinetsScreen({ navigation, route }) {

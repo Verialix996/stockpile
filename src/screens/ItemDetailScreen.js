@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useDB } from '../context/DBContext';
 import { Breadcrumb, Tag, CondDot } from '../components/UI';
-import { ItemModal } from '../components/Modals';
+import { ItemModal } from '../components/modals/Modals';
 import { colors, COND_COLOR, radius } from '../utils/theme';
 import { loadApiKey, identifyItemWithClaude } from '../utils/apiKey';
 

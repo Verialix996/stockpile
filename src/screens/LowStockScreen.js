@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { colors, radius, COND_COLOR } from '../utils/theme';
 import { CondDot, Tag, EmptyState } from '../components/UI';
-import { ZeroQtyModal } from '../components/ZeroQtyModal';
+import { ZeroQtyModal } from '../components/modals/ZeroQtyModal';
 import { useQuantityControl } from '../hooks/useQuantityControl';
 
 export default function LowStockScreen({ navigation }) {
@@ -62,16 +62,7 @@ export default function LowStockScreen({ navigation }) {
 
   // ── Item row shared component ─────────────────────────────────────────────
   const ItemRow = ({ item, showBar = true, extraRight }) => (
-    <TouchableOpacity
-      style={[b.card, item.quantity === 0 && b.cardOut]}
-      activeOpacity={0.7}
-      onPress={() => navigation.navigate('ItemDetail', {
-        roomId: item._room?.id, roomName: item._room?.name,
-        cabinetId: item._cab?.id, cabinetName: item._cab?.name,
-        shelfId: item.shelfId, shelfName: item._shelf?.name,
-        itemId: item.id,
-      })}
-    >
+    <View style={[b.card, item.quantity === 0 && b.cardOut]}>
       <View style={[b.strip, {
         backgroundColor: item.quantity === 0 ? colors.danger
           : item.needsRestock ? colors.accent
@@ -79,13 +70,24 @@ export default function LowStockScreen({ navigation }) {
       }]} />
 
       <View style={{ flex: 1, gap: 5 }}>
-        {/* Name + badge */}
-        <View style={b.row}>
-          <Text style={b.itemName} numberOfLines={1}>{item.name}</Text>
-          {item.needsRestock && <View style={b.badgeRestock}><Text style={b.badgeRestockText}>RESTOCK</Text></View>}
-          {item.quantity === 0 && !item.needsRestock && <View style={b.badgeOut}><Text style={b.badgeOutText}>OUT</Text></View>}
-          {item.quantity > 0 && item.quantity <= (item.minStock || 0) && <View style={b.badgeLow}><Text style={b.badgeLowText}>LOW</Text></View>}
-        </View>
+        {/* Name + badge — tappable to open detail */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('ItemDetail', {
+            roomId: item._room?.id, roomName: item._room?.name,
+            cabinetId: item._cab?.id, cabinetName: item._cab?.name,
+            shelfId: item.shelfId, shelfName: item._shelf?.name,
+            itemId: item.id,
+          })}
+        >
+          <View style={b.row}>
+            <Text style={b.itemName} numberOfLines={1}>{item.name}</Text>
+            {item.needsRestock && <View style={b.badgeRestock}><Text style={b.badgeRestockText}>RESTOCK</Text></View>}
+            {item.quantity === 0 && !item.needsRestock && <View style={b.badgeOut}><Text style={b.badgeOutText}>OUT</Text></View>}
+            {item.quantity > 0 && item.quantity <= (item.minStock || 0) && <View style={b.badgeLow}><Text style={b.badgeLowText}>LOW</Text></View>}
+            <Text style={b.arrow}>›</Text>
+          </View>
+        </TouchableOpacity>
 
         {showBar && <StockBar quantity={item.quantity} minStock={item.minStock} />}
 
@@ -130,9 +132,7 @@ export default function LowStockScreen({ navigation }) {
           {extraRight}
         </View>
       </View>
-
-      <Text style={b.arrow}>›</Text>
-    </TouchableOpacity>
+    </View>
   );
 
   // ── Section header ────────────────────────────────────────────────────────

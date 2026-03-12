@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet,
 } from 'react-native';
-import { colors, radius } from '../utils/theme';
+import { colors, radius } from '../../utils/theme';
 
 export function ZeroQtyModal({ item, onRemove, onKeep, onCancel }) {
   if (!item) return null;

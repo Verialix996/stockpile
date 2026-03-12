@@ -10,5 +10,9 @@ dist/
 web-build/
 .env
 
-# Local data file — personal data, don't commit to git
+# Local data — personal data and database, don't commit
 stockpile-data.json
+data/
+
+# Docs — local notes and test plans, not needed for the app
+docs/

@@ -2,15 +2,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Platform, ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { colors, radius } from '../utils/theme';
 import { loadApiKey, saveApiKey } from '../utils/apiKey';
+import { loadServerUrl, saveServerUrl } from '../utils/serverUrl';
 import { buildCSV, downloadCSV, parseCSV, rowsToDB } from '../utils/csvIO';
 
 export default function SettingsScreen({ navigation }) {
   const { db, replaceDB } = useDB();
+
+  // ── Server URL state ─────────────────────────────────────────────────────────
+  const [serverUrl, setServerUrl]       = useState('');
+  const [serverUrlSaved, setServerUrlSaved] = useState(false);
 
   // ── API key state ────────────────────────────────────────────────────────────
   const [apiKey, setApiKey]       = useState('');
@@ -18,8 +26,23 @@ export default function SettingsScreen({ navigation }) {
   const [keySaved, setKeySaved]   = useState(false);
 
   useEffect(() => {
+    loadServerUrl().then(u => setServerUrl(u));
     loadApiKey().then(k => { if (k) setApiKey(k); });
   }, []);
+
+  const [serverUrlError, setServerUrlError] = useState('');
+
+  const handleSaveServerUrl = async () => {
+    const trimmed = serverUrl.trim();
+    if (trimmed && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setServerUrlError('URL must start with http:// or https://');
+      return;
+    }
+    setServerUrlError('');
+    await saveServerUrl(trimmed);
+    setServerUrlSaved(true);
+    setTimeout(() => setServerUrlSaved(false), 2000);
+  };
 
   const handleSaveKey = async () => {
     await saveApiKey(apiKey.trim());
@@ -31,11 +54,11 @@ export default function SettingsScreen({ navigation }) {
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setExporting(true);
     try {
       const csv = buildCSV(db);
-      downloadCSV(csv);
+      await downloadCSV(csv);
       setExportDone(true);
       setTimeout(() => setExportDone(false), 3000);
     } catch (e) {
@@ -70,6 +93,23 @@ export default function SettingsScreen({ navigation }) {
     reader.readAsText(file);
   };
 
+  const handleMobileFilePick = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: ['text/csv', 'text/comma-separated-values', '*/*'] });
+      if (result.canceled) return;
+      setImporting(true);
+      setImportResult(null);
+      const text = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      const { rows, errors } = parseCSV(text);
+      setImporting(false);
+      setPendingRows(rows);
+      setImportResult({ rows, errors });
+    } catch (e) {
+      setImporting(false);
+      alert('Could not read file: ' + e.message);
+    }
+  };
+
   const handleConfirmImport = () => {
     if (!pendingRows || pendingRows.length === 0) return;
     const newDB = rowsToDB(pendingRows, db, pendingMode);
@@ -84,6 +124,7 @@ export default function SettingsScreen({ navigation }) {
   const totalRooms = db.rooms.length;
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <SafeAreaView style={s.safe} edges={['top']}>
       {/* Header */}
       <View style={s.header}>
@@ -94,6 +135,33 @@ export default function SettingsScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── Server URL ── */}
+        <Text style={s.sectionTitle}>🌐 Server</Text>
+        <View style={s.card}>
+          <Text style={s.cardLabel}>SERVER URL</Text>
+          <Text style={s.cardHint}>
+            Address of the Stockpile server. Use http://localhost:3747 for the same machine,
+            or your server's local IP (e.g. http://192.168.1.50:3747) for phones on the same network.
+          </Text>
+          <TextInput
+            style={[s.keyInput, { marginBottom: 12 }]}
+            value={serverUrl}
+            onChangeText={setServerUrl}
+            placeholder="http://192.168.1.50:3747"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          {serverUrlError ? <Text style={s.errorText}>{serverUrlError}</Text> : null}
+          <TouchableOpacity
+            style={[s.btn, s.btnPrimary, serverUrlSaved && s.btnSuccess]}
+            onPress={handleSaveServerUrl}
+          >
+            <Text style={s.btnPrimaryText}>{serverUrlSaved ? '✓ Saved!' : 'Save URL'}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ── API Key ── */}
         <Text style={s.sectionTitle}>🤖 Claude AI</Text>
@@ -190,7 +258,7 @@ export default function SettingsScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* File picker (web) */}
+          {/* File picker (web only hidden input) */}
           {Platform.OS === 'web' && (
             <input
               ref={fileInputRef}
@@ -203,7 +271,7 @@ export default function SettingsScreen({ navigation }) {
 
           <TouchableOpacity
             style={[s.btn, s.btnGhost, importing && s.btnDisabled]}
-            onPress={() => fileInputRef.current?.click()}
+            onPress={Platform.OS === 'web' ? () => fileInputRef.current?.click() : handleMobileFilePick}
             disabled={importing}
           >
             {importing
@@ -297,6 +365,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -378,6 +447,7 @@ const s = StyleSheet.create({
   },
   warnBoxText: { fontSize: 12, color: colors.danger, lineHeight: 18 },
   warnText: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8 },
+  errorText: { fontSize: 12, color: colors.danger, marginBottom: 8 },
   importBtns: { flexDirection: 'row', gap: 10 },
 
   // Buttons

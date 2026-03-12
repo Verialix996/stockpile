@@ -50,7 +50,6 @@ The home screen shows a live count of all rooms, cabinets, shelves, and items.
 
 | Platform | How to run | Status |
 |---|---|---|
-| **Steam Deck** | Firefox browser → `http://localhost:8082` | ✅ Primary platform |
 | **Linux desktop** | Any browser → `http://localhost:8082` | ✅ Fully supported |
 | **Windows / Mac** | Any browser → `http://localhost:8082` | ✅ Fully supported |
 | **Android phone** | Expo Go app (scan QR code) | ✅ Supported |
@@ -75,14 +74,12 @@ cd stockpile
 npm install
 ```
 
-### Run (Steam Deck / Linux / Desktop)
+### Run (Desktop)
 ```bash
 npm run dev
 ```
 Open **http://localhost:8082** in your browser.
 For mobile view on Steam Deck: press `F12` → click the phone icon → select a device.
-
-> If port 8081 is busy, Expo will automatically use 8082. If the server crashes on restart run `fuser -k 3747/tcp` to free the port then try again.
 
 ### Run on Android / iPhone
 1. Install **Expo Go** from the Play Store or App Store
@@ -133,21 +130,6 @@ stockpile/
         └── SettingsScreen.js         # API key management
 ```
 
----
-
-## 🗺️ Roadmap
-
-- [ ] Notification board — expiring items + restock reminders in one place
-- [ ] Check stock against a new order / shopping list
-- [ ] Barcode / QR code scanning
-- [ ] Export data to CSV or JSON
-- [ ] Import / restore from backup
-- [ ] Multi-device sync
-- [ ] Light mode
-- [ ] Custom item categories
-- [ ] Bulk edit items
-- [ ] Publish to Google Play Store
-- [ ] Publish to Apple App Store
 
 ---
 

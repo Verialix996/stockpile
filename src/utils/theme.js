@@ -24,6 +24,9 @@ export const COND_COLOR = {
 export const CONDITIONS  = ['Good', 'Used', 'Damaged', 'Unknown'];
 export const CATEGORIES  = ['Food','Beverages','Cleaning','Tools','Electronics','Clothing','Documents','Other'];
 
+export const CONTAINER_TYPES = ['Bag', 'Box', 'Bin', 'Crate'];
+export const CONTAINER_ICONS = { Bag: '🎒', Box: '📦', Bin: '🗃️', Crate: '🧳' };
+
 export const radius = {
   sm: 8,
   md: 12,

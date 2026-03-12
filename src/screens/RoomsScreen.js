@@ -6,9 +6,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { ListCard, SectionLabel, StatBar, SearchBar, EmptyState } from '../components/UI';
-import { NameModal } from '../components/Modals';
-import { GlobalAddItemModal } from '../components/GlobalAddItemModal';
-import { ZeroQtyModal } from '../components/ZeroQtyModal';
+import { NameModal } from '../components/modals/Modals';
+import { GlobalAddItemModal } from '../components/modals/GlobalAddItemModal';
+import { ZeroQtyModal } from '../components/modals/ZeroQtyModal';
 import { useQuantityControl } from '../hooks/useQuantityControl';
 import { colors, CATEGORIES } from '../utils/theme';
 
@@ -39,9 +39,12 @@ export default function RoomsScreen({ navigation }) {
     return counts;
   }, [db.items]);
 
-  const lowStockCount = useMemo(() =>
-    db.items.filter(i => i.minStock != null && i.minStock > 0 && i.quantity <= i.minStock).length
-  , [db.items]);
+  const lowStockCount = useMemo(() => {
+    const restock    = db.items.filter(i => i.needsRestock === true).length;
+    const outOfStock = db.items.filter(i => i.quantity === 0 && !i.needsRestock && i.minStock != null && i.minStock > 0).length;
+    const runningLow = db.items.filter(i => i.minStock != null && i.minStock > 0 && i.quantity > 0 && i.quantity <= i.minStock).length;
+    return restock + outOfStock + runningLow;
+  }, [db.items]);
 
   const isFiltering = search.trim().length > 0 || activeCategory !== null;
 
@@ -97,10 +100,7 @@ export default function RoomsScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('MapsList')}>
-          <Text style={{ fontSize: 20 }}>🗺️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('Settings')}>
+<TouchableOpacity style={s.iconBtn} onPress={() => navigation.navigate('Settings')}>
           <Text style={{ fontSize: 20 }}>⚙️</Text>
         </TouchableOpacity>
       </View>
@@ -251,6 +251,9 @@ export default function RoomsScreen({ navigation }) {
 
       {/* FAB row */}
       <View style={s.fabRow}>
+        <TouchableOpacity style={s.fabSecondary} onPress={() => navigation.navigate('ScanRoom')} activeOpacity={0.85}>
+          <Text style={s.fabSecondaryText}>📷 Scan Room</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.fabSecondary} onPress={() => setShowAdd(true)} activeOpacity={0.85}>
           <Text style={s.fabSecondaryText}>🏠 Room</Text>
         </TouchableOpacity>
@@ -301,7 +304,7 @@ const s = StyleSheet.create({
   },
   badgeText: { fontSize: 9, color: '#fff', fontWeight: '800' },
 
-  chipScroll: { flexGrow: 0, marginTop: 10 },
+  chipScroll: { flexGrow: 0, flexShrink: 0, marginTop: 10 },
   chipRow: { paddingHorizontal: 20, gap: 8, flexDirection: 'row', alignItems: 'center' },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
