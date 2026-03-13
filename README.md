@@ -46,7 +46,7 @@ Set a minimum quantity threshold on any item. When stock drops to or below that 
 All data is stored in a local SQLite database via a lightweight Node.js server. Data survives browser cache clears, app restarts, and server restarts. Accessible from any device on the same network.
 
 ### 🔄 Multi-Device Sync
-Any device on the same local network can connect to the server via LAN IP. Changes on one device are visible on all others after a refresh.
+Any device on the same local network can connect to the server via LAN IP. The app automatically syncs every 10 seconds — changes from other devices appear without any manual refresh.
 
 ### 📤 CSV Export & Import
 Export all items to a CSV file with full location data (Room, Cabinet, Shelf) and all item fields. Import CSV files in **merge** mode (add to existing data) or **replace** mode (overwrite everything). On mobile, export opens the native share sheet.
@@ -146,7 +146,7 @@ stockpile/
 ├── package.json                   # Dependencies
 └── src/
     ├── context/
-    │   ├── DBContext.js           # App data state + all CRUD operations
+    │   ├── DBContext.js           # App data state + all CRUD operations + 10s sync
     │   └── MapContext.js          # Floor plan map state (pending rework)
     ├── hooks/
     │   └── useQuantityControl.js  # Shared +/- qty logic and zero qty dialog
@@ -180,6 +180,7 @@ stockpile/
 - [React Native](https://reactnative.dev) + [Expo](https://expo.dev) SDK 54
 - [React Navigation](https://reactnavigation.org)
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — server-side SQLite
+- [Docker](https://www.docker.com) — containerised deployment
 - [expo-file-system](https://docs.expo.dev/versions/latest/sdk/filesystem/) — mobile file access
 - [expo-document-picker](https://docs.expo.dev/versions/latest/sdk/document-picker/) — CSV import on mobile
 - [expo-sharing](https://docs.expo.dev/versions/latest/sdk/sharing/) — CSV export on mobile
