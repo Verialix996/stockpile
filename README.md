@@ -66,8 +66,8 @@ The home screen shows a live count of all rooms, cabinets, shelves, and items.
 | **Linux / Windows / Mac** | Any browser → `http://localhost:8082` | ✅ Supported |
 | **Android phone** | Expo Go app — scan QR code | ✅ Supported |
 | **iPhone / iPad** | Expo Go app — scan QR code | ✅ Supported |
-| **Google Play Store** | Native Android build | 🔲 Planned |
-| **Apple App Store** | Native iOS build | 🔲 Planned |
+| **Google Play Store** | Native Android build | 🔜 Future |
+| **Apple App Store** | Native iOS build | 🔜 Future |
 
 ---
 
