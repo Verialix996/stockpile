@@ -73,7 +73,33 @@ The home screen shows a live count of all rooms, cabinets, shelves, and items.
 
 ## 🚀 Getting Started
 
-### First time setup
+### Option 1 — Docker (recommended)
+
+The easiest way to run Stockpile. No Node.js installation required.
+
+```bash
+git clone https://github.com/Verialix996/stockpile.git
+cd stockpile
+docker compose up
+```
+
+Open **http://localhost:8082** in your browser.
+The API server runs on port 3747. Data is persisted in the `data/` folder.
+
+To run in the background:
+```bash
+docker compose up -d
+```
+
+To stop:
+```bash
+docker compose down
+```
+
+---
+
+### Option 2 — Manual setup
+
 ```bash
 # Install Node.js via nvm (no sudo needed)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
@@ -86,7 +112,6 @@ cd stockpile
 npm install
 ```
 
-### Run (browser)
 ```bash
 npm run dev
 ```
@@ -95,7 +120,7 @@ Open **http://localhost:8082** in your browser. The data server starts automatic
 ### Run on Android / iPhone
 1. Install **Expo Go** from the Play Store or App Store
 2. Make sure your phone and the host machine are on the same Wi-Fi
-3. Run `npm run dev` and scan the QR code
+3. Run `npx expo start` (in a separate terminal alongside `node server.js`) and scan the QR code
 4. In the app go to **Settings → Server URL** and set it to the LAN IP shown in the terminal (e.g. `http://192.168.1.x:3747`)
 
 ---

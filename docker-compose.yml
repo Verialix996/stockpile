@@ -1,0 +1,9 @@
+services:
+  stockpile:
+    build: .
+    ports:
+      - "3747:3747"   # API server
+      - "8082:8082"   # Web app
+    volumes:
+      - ./data:/app/data   # Persist database between restarts
+    restart: unless-stopped
