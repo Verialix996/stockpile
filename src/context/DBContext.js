@@ -10,6 +10,14 @@ export function DBProvider({ children }) {
     loadDB().then(setDB);
   }, []);
 
+  // Poll server every 10 seconds for changes from other devices
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDB().then(setDB);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const update = (next) => {
     setDB(next);
     saveDB(next);

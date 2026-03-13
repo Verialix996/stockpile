@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useDB } from '../../context/DBContext';
 import { colors, radius, CONDITIONS, CATEGORIES } from '../../utils/theme';
 import { loadApiKey, identifyItemWithClaude } from '../../utils/apiKey';
+import { ExpiryPicker } from './Modals';
 
 // ── Small reusable bits ───────────────────────────────────────────────────────
 function Label({ text }) {
@@ -286,15 +287,8 @@ export function GlobalAddItemModal({ visible, onClose }) {
             <Label text="Category" />
             <SelectRow options={CATEGORIES} value={form.category} onChange={v => set('category', v)} />
 
-            <Label text="Expiry Date (YYYY-MM-DD)" />
-            <TextInput
-              style={s.input}
-              value={form.expiry}
-              onChangeText={v => set('expiry', v)}
-              placeholder="e.g. 2026-12-31"
-              placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
-            />
+            <Label text="Expiry Date" />
+            <ExpiryPicker value={form.expiry} onChange={v => set('expiry', v)} />
 
             <Label text="Notes" />
             <TextInput

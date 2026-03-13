@@ -9,19 +9,22 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, CONDITIONS, CATEGORIES } from '../../utils/theme';
 import { loadApiKey, identifyItemWithClaude } from '../../utils/apiKey';
 
-function ExpiryPicker({ value, onChange }) {
+export function ExpiryPicker({ value, onChange }) {
   const [show, setShow] = useState(false);
   const date = value ? new Date(value + 'T00:00:00') : new Date();
 
   if (Platform.OS === 'web') {
     return (
-      <TextInput
-        style={s.input}
-        value={value}
-        onChangeText={onChange}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={colors.muted}
-        keyboardType="numbers-and-punctuation"
+      <input
+        type="date"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          backgroundColor: colors.card, border: `1px solid ${colors.border}`,
+          borderRadius: 10, padding: 11, color: value ? colors.text : colors.muted,
+          fontSize: 15, marginBottom: 14, width: '100%', boxSizing: 'border-box',
+          outline: 'none', colorScheme: 'dark',
+        }}
       />
     );
   }

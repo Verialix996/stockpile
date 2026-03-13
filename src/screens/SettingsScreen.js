@@ -11,6 +11,7 @@ import { useDB } from '../context/DBContext';
 import { colors, radius } from '../utils/theme';
 import { loadApiKey, saveApiKey } from '../utils/apiKey';
 import { loadServerUrl, saveServerUrl } from '../utils/serverUrl';
+import { loadDB } from '../utils/db';
 import { buildCSV, downloadCSV, parseCSV, rowsToDB } from '../utils/csvIO';
 
 export default function SettingsScreen({ navigation }) {
@@ -40,6 +41,8 @@ export default function SettingsScreen({ navigation }) {
     }
     setServerUrlError('');
     await saveServerUrl(trimmed);
+    const fresh = await loadDB();
+    replaceDB(fresh);
     setServerUrlSaved(true);
     setTimeout(() => setServerUrlSaved(false), 2000);
   };
@@ -74,6 +77,7 @@ export default function SettingsScreen({ navigation }) {
   const [importResult, setImportResult] = useState(null); // { mode, rows, errors }
   const [pendingRows, setPendingRows]   = useState(null);
   const [pendingMode, setPendingMode]   = useState('replace');
+  const [showReplacePrompt, setShowReplacePrompt] = useState(false);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -81,6 +85,7 @@ export default function SettingsScreen({ navigation }) {
     e.target.value = '';
     setImporting(true);
     setImportResult(null);
+    setShowReplacePrompt(false);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target.result;
@@ -99,6 +104,7 @@ export default function SettingsScreen({ navigation }) {
       if (result.canceled) return;
       setImporting(true);
       setImportResult(null);
+      setShowReplacePrompt(false);
       const text = await FileSystem.readAsStringAsync(result.assets[0].uri);
       const { rows, errors } = parseCSV(text);
       setImporting(false);
@@ -112,10 +118,33 @@ export default function SettingsScreen({ navigation }) {
 
   const handleConfirmImport = () => {
     if (!pendingRows || pendingRows.length === 0) return;
-    const newDB = rowsToDB(pendingRows, db, pendingMode);
+    if (pendingMode === 'replace') {
+      setShowReplacePrompt(true);
+      return;
+    }
+    const newDB = rowsToDB(pendingRows, db, 'merge');
     replaceDB(newDB);
     setImportResult(null);
     setPendingRows(null);
+    alert(`✅ Imported ${pendingRows.length} items successfully.`);
+  };
+
+  const handleNukeImport = () => {
+    const emptyDB = { rooms: [], cabinets: [], shelves: [], items: [] };
+    const newDB = rowsToDB(pendingRows, emptyDB, 'replace');
+    replaceDB(newDB);
+    setImportResult(null);
+    setPendingRows(null);
+    setShowReplacePrompt(false);
+    alert(`✅ Imported ${pendingRows.length} items. All previous data cleared.`);
+  };
+
+  const handleReplaceExisting = () => {
+    const newDB = rowsToDB(pendingRows, db, 'merge');
+    replaceDB(newDB);
+    setImportResult(null);
+    setPendingRows(null);
+    setShowReplacePrompt(false);
     alert(`✅ Imported ${pendingRows.length} items successfully.`);
   };
 
@@ -305,30 +334,58 @@ export default function SettingsScreen({ navigation }) {
                     </Text>
                   </View>
 
-                  {pendingMode === 'replace' && (
-                    <View style={s.warnBox}>
-                      <Text style={s.warnBoxText}>
-                        ⚠️ This will permanently delete all {totalItems} current items and replace them with the imported data.
-                      </Text>
-                    </View>
+                  {showReplacePrompt ? (
+                    <>
+                      <View style={s.warnBox}>
+                        <Text style={[s.warnBoxText, { fontWeight: '700', marginBottom: 4 }]}>How would you like to replace?</Text>
+                        <Text style={s.warnBoxText}>• <Text style={{ fontWeight: '700' }}>Nuke All</Text> — delete everything, import only this CSV</Text>
+                        <Text style={s.warnBoxText}>• <Text style={{ fontWeight: '700' }}>Replace Existing</Text> — update matching items, add new ones, keep the rest</Text>
+                      </View>
+                      <View style={s.importBtns}>
+                        <TouchableOpacity
+                          style={[s.btn, s.btnDanger, { flex: 1 }]}
+                          onPress={handleNukeImport}
+                        >
+                          <Text style={s.btnPrimaryText}>🗑️ Nuke All</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.btn, s.btnPrimary, { flex: 1 }]}
+                          onPress={handleReplaceExisting}
+                        >
+                          <Text style={s.btnPrimaryText}>🔄 Replace Existing</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity onPress={() => setShowReplacePrompt(false)}>
+                        <Text style={[s.warnText, { marginTop: 8 }]}>← Back</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      {pendingMode === 'replace' && (
+                        <View style={s.warnBox}>
+                          <Text style={s.warnBoxText}>
+                            ⚠️ This will permanently delete all {totalItems} current items and replace them with the imported data.
+                          </Text>
+                        </View>
+                      )}
+                      <View style={s.importBtns}>
+                        <TouchableOpacity
+                          style={[s.btn, s.btnGhost, { flex: 1 }]}
+                          onPress={() => { setImportResult(null); setPendingRows(null); setShowReplacePrompt(false); }}
+                        >
+                          <Text style={s.btnGhostText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.btn, pendingMode === 'replace' ? s.btnDanger : s.btnPrimary, { flex: 1 }]}
+                          onPress={handleConfirmImport}
+                        >
+                          <Text style={s.btnPrimaryText}>
+                            {pendingMode === 'replace' ? '⚠️ Replace All' : '✓ Merge Import'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
                   )}
-
-                  <View style={s.importBtns}>
-                    <TouchableOpacity
-                      style={[s.btn, s.btnGhost, { flex: 1 }]}
-                      onPress={() => { setImportResult(null); setPendingRows(null); }}
-                    >
-                      <Text style={s.btnGhostText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[s.btn, pendingMode === 'replace' ? s.btnDanger : s.btnPrimary, { flex: 1 }]}
-                      onPress={handleConfirmImport}
-                    >
-                      <Text style={s.btnPrimaryText}>
-                        {pendingMode === 'replace' ? '⚠️ Replace All' : '✓ Merge Import'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </>
               ) : (
                 <Text style={s.warnText}>No valid rows found. Check the file format.</Text>
