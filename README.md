@@ -146,8 +146,7 @@ stockpile/
 ├── package.json                   # Dependencies
 └── src/
     ├── context/
-    │   ├── DBContext.js           # App data state + all CRUD operations + 10s sync
-    │   └── MapContext.js          # Floor plan map state (pending rework)
+    │   └── DBContext.js           # App data state + all CRUD operations + 10s sync
     ├── hooks/
     │   └── useQuantityControl.js  # Shared +/- qty logic and zero qty dialog
     ├── utils/
@@ -156,6 +155,7 @@ stockpile/
     │   ├── csvIO.js               # CSV build, parse, export, import
     │   ├── apiKey.js              # API key storage + Claude AI calls
     │   └── theme.js               # Colors, spacing, categories, constants
+
     ├── components/
     │   ├── UI.js                  # Cards, FAB, search bar, breadcrumb, stats
     │   └── modals/
@@ -171,6 +171,7 @@ stockpile/
         ├── LowStockScreen.js      # Out of stock + running low dashboard
         ├── ScanRoomScreen.js      # AI room scan and review
         └── SettingsScreen.js      # Server URL, API key, CSV export/import
+
 ```
 
 ---
