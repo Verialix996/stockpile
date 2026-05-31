@@ -6,4 +6,11 @@ services:
       - "8082:8082"   # Web app
     volumes:
       - ./data:/app/data   # Persist database between restarts
+    environment:
+      # Local AI model server. With Docker, host.docker.internal points back
+      # to the host machine where Ollama usually runs.
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llava
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped

@@ -9,7 +9,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDB } from '../context/DBContext';
 import { colors, radius } from '../utils/theme';
-import { loadApiKey, saveApiKey } from '../utils/apiKey';
 import { loadServerUrl, saveServerUrl } from '../utils/serverUrl';
 import { loadDB } from '../utils/db';
 import { buildCSV, downloadCSV, parseCSV, rowsToDB } from '../utils/csvIO';
@@ -21,14 +20,12 @@ export default function SettingsScreen({ navigation }) {
   const [serverUrl, setServerUrl]       = useState('');
   const [serverUrlSaved, setServerUrlSaved] = useState(false);
 
-  // ── API key state ────────────────────────────────────────────────────────────
-  const [apiKey, setApiKey]       = useState('');
-  const [showKey, setShowKey]     = useState(false);
-  const [keySaved, setKeySaved]   = useState(false);
+  // ── Local AI state ───────────────────────────────────────────────────────────
+  const [aiStatus,  setAiStatus]  = useState(null);
+  const [aiTesting, setAiTesting] = useState(false);
 
   useEffect(() => {
     loadServerUrl().then(u => setServerUrl(u));
-    loadApiKey().then(k => { if (k) setApiKey(k); });
   }, []);
 
   const [serverUrlError, setServerUrlError] = useState('');
@@ -47,10 +44,19 @@ export default function SettingsScreen({ navigation }) {
     setTimeout(() => setServerUrlSaved(false), 2000);
   };
 
-  const handleSaveKey = async () => {
-    await saveApiKey(apiKey.trim());
-    setKeySaved(true);
-    setTimeout(() => setKeySaved(false), 2000);
+  const handleTestAI = async () => {
+    setAiTesting(true);
+    setAiStatus(null);
+    try {
+      const url = await loadServerUrl();
+      const res = await fetch(`${url}/ai/status`);
+      const data = await res.json();
+      setAiStatus(data);
+    } catch (e) {
+      setAiStatus({ ok: false, error: e.message });
+    } finally {
+      setAiTesting(false);
+    }
   };
 
   // ── Export state ──────────────────────────────────────────────────────────
@@ -192,38 +198,35 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* ── API Key ── */}
-        <Text style={s.sectionTitle}>🤖 Claude AI</Text>
+        {/* ── Local AI ── */}
+        <Text style={s.sectionTitle}>🤖 Local AI</Text>
         <View style={s.card}>
-          <Text style={s.cardLabel}>ANTHROPIC API KEY</Text>
-          <Text style={s.cardHint}>Used for AI photo recognition. Get one free at console.anthropic.com</Text>
-          <View style={s.keyRow}>
-            <TextInput
-              style={s.keyInput}
-              value={apiKey}
-              onChangeText={setApiKey}
-              placeholder="sk-ant-…"
-              placeholderTextColor={colors.muted}
-              secureTextEntry={!showKey}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity style={s.showBtn} onPress={() => setShowKey(v => !v)}>
-              <Text style={s.showBtnText}>{showKey ? '🙈' : '👁️'}</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={s.cardLabel}>OLLAMA (LOCAL AI MODEL)</Text>
+          <Text style={s.cardHint}>
+            AI features use a local Ollama model — no API key or internet needed.
+            Run Ollama on your server machine with a vision model (e.g. llava).
+            Configure via OLLAMA_URL and OLLAMA_MODEL env vars on the server.
+          </Text>
           <TouchableOpacity
-            style={[s.btn, s.btnPrimary, keySaved && s.btnSuccess]}
-            onPress={handleSaveKey}
+            style={[s.btn, s.btnGhost, aiTesting && s.btnDisabled]}
+            onPress={handleTestAI}
+            disabled={aiTesting}
           >
-            <Text style={s.btnPrimaryText}>{keySaved ? '✓ Saved!' : 'Save Key'}</Text>
+            {aiTesting
+              ? <ActivityIndicator color={colors.accent} size="small" />
+              : <Text style={s.btnGhostText}>🔍 Test AI Connection</Text>
+            }
           </TouchableOpacity>
-          {apiKey ? (
-            <View style={s.keyStatus}>
-              <View style={s.keyStatusDot} />
-              <Text style={s.keyStatusText}>API key is set</Text>
+          {aiStatus && (
+            <View style={[s.keyStatus, { marginTop: 10 }]}>
+              <View style={[s.keyStatusDot, { backgroundColor: aiStatus.ok ? colors.good : colors.danger }]} />
+              <Text style={[s.keyStatusText, { color: aiStatus.ok ? colors.good : colors.danger }]}>
+                {aiStatus.ok
+                  ? `Connected — model: ${aiStatus.model}`
+                  : `Offline: ${aiStatus.error}`}
+              </Text>
             </View>
-          ) : null}
+          )}
         </View>
 
         {/* ── Export ── */}
@@ -450,18 +453,11 @@ const s = StyleSheet.create({
   cardLabel: { fontSize: 10, color: colors.muted, letterSpacing: 1, marginBottom: 4 },
   cardHint:  { fontSize: 12, color: colors.muted, lineHeight: 18, marginBottom: 14 },
 
-  // API key
-  keyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  // Local AI status
   keyInput: {
     flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: 10, padding: 11, color: colors.text, fontSize: 14,
   },
-  showBtn: {
-    width: 40, height: 42, borderRadius: 10,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  showBtnText: { fontSize: 18 },
   keyStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   keyStatusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.good },
   keyStatusText: { fontSize: 12, color: colors.good },

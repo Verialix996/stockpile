@@ -7,7 +7,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useDB } from '../../context/DBContext';
 import { colors, radius, CONDITIONS, CATEGORIES } from '../../utils/theme';
-import { loadApiKey, identifyItemWithClaude } from '../../utils/apiKey';
+import { identifyItem } from '../../utils/ai';
 import { ExpiryPicker } from './Modals';
 
 // ── Small reusable bits ───────────────────────────────────────────────────────
@@ -164,11 +164,9 @@ export function GlobalAddItemModal({ visible, onClose }) {
 
   // ── AI scan ─────────────────────────────────────────────────────────────────
   const runScan = async (base64) => {
-    const apiKey = await loadApiKey();
-    if (!apiKey) { setScanError('No API key. Go to ⚙️ Settings to add your Anthropic key.'); return; }
     setScanning(true); setScanError('');
     try {
-      const result = await identifyItemWithClaude(base64, apiKey);
+      const result = await identifyItem(base64);
       if (result.name)     set('name',     result.name);
       if (result.category) set('category', result.category);
       if (result.notes)    set('notes',    result.notes);

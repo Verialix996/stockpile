@@ -12,7 +12,7 @@ import { ItemModal } from '../components/modals/Modals';
 import { ZeroQtyModal } from '../components/modals/ZeroQtyModal';
 import { useQuantityControl } from '../hooks/useQuantityControl';
 import { colors, COND_COLOR, CONTAINER_ICONS } from '../utils/theme';
-import { loadApiKey, identifyContainerContentsWithClaude } from '../utils/apiKey';
+import { identifyContainerContents } from '../utils/ai';
 
 export default function ItemsScreen({ navigation, route }) {
   const { roomId, roomName, cabinetId, cabinetName, shelfId, shelfName, containerType } = route.params;
@@ -35,17 +35,9 @@ export default function ItemsScreen({ navigation, route }) {
   const containerIcon = CONTAINER_ICONS[containerType] || '📦';
 
   const runContainerScan = async (base64) => {
-    const apiKey = await loadApiKey();
-    if (!apiKey) {
-      Alert.alert('API Key Required', 'Go to Settings and add your Anthropic API key.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Settings', onPress: () => navigation.navigate('Settings') },
-      ]);
-      return;
-    }
     setScanLoading(true);
     try {
-      const detected = await identifyContainerContentsWithClaude(base64, apiKey);
+      const detected = await identifyContainerContents(base64);
       const withIds = detected.map((item, i) => ({ ...item, _id: String(i) }));
       const checked = {};
       withIds.forEach(item => { checked[item._id] = true; });

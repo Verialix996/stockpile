@@ -8,9 +8,66 @@ const path    = require('path');
 const os      = require('os');
 const Database = require('better-sqlite3');
 
-const PORT    = 3747;
-const DB_FILE = path.join(__dirname, 'data', 'stockpile.db');
-const LEGACY_JSON = path.join(__dirname, 'data', 'stockpile-data.json');
+const PORT         = 3747;
+const DB_FILE      = path.join(__dirname, 'data', 'stockpile.db');
+const LEGACY_JSON  = path.join(__dirname, 'data', 'stockpile-data.json');
+const OLLAMA_URL   = process.env.OLLAMA_URL   || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llava';
+const MAX_JSON_BODY_BYTES = Number(process.env.MAX_JSON_BODY_BYTES || 8 * 1024 * 1024);
+
+function sendJson(res, status, data) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+function getOllamaUrl() {
+  try {
+    const url = new URL(OLLAMA_URL);
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('unsupported protocol');
+    return url;
+  } catch (e) {
+    throw new Error(`Invalid OLLAMA_URL (${OLLAMA_URL}): ${e.message}`);
+  }
+}
+
+function readJsonBody(req, res, onJson) {
+  let body = '';
+  let received = 0;
+  let rejected = false;
+
+  req.setTimeout(30000, () => {
+    if (!res.headersSent) sendJson(res, 408, { error: { message: 'Request body timed out' } });
+    req.destroy();
+  });
+
+  req.on('data', chunk => {
+    if (rejected) return;
+    received += chunk.length;
+    if (received > MAX_JSON_BODY_BYTES) {
+      rejected = true;
+      sendJson(res, 413, { error: { message: `Request body too large. Limit is ${MAX_JSON_BODY_BYTES} bytes.` } });
+      req.resume();
+      return;
+    }
+    body += chunk;
+  });
+
+  req.on('end', () => {
+    if (rejected) return;
+    try {
+      onJson(JSON.parse(body || '{}'));
+    } catch (_) {
+      sendJson(res, 400, { error: { message: 'Invalid JSON request body' } });
+    }
+  });
+}
+
+function ollamaModelMatches(name) {
+  return name === OLLAMA_MODEL || name === `${OLLAMA_MODEL}:latest` || name.startsWith(`${OLLAMA_MODEL}:`);
+}
+
+// Ensure the persistent data directory exists before SQLite opens the DB.
+fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
 
 // ── Open / create database ────────────────────────────────────────────────────
 const db = new Database(DB_FILE);
@@ -137,9 +194,7 @@ const server = http.createServer((req, res) => {
   // GET /data
   if (req.method === 'GET' && req.url === '/data') {
     try {
-      const data = loadData();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
+      sendJson(res, 200, loadData());
     } catch (e) {
       res.writeHead(500); res.end('Read error: ' + e.message);
     }
@@ -148,62 +203,124 @@ const server = http.createServer((req, res) => {
 
   // POST /data
   if (req.method === 'POST' && req.url === '/data') {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    readJsonBody(req, res, (data) => {
       try {
-        const data = JSON.parse(body);
         saveData(data);
         console.log(`💾 Saved — ${data.rooms?.length ?? 0} rooms, ${data.items?.length ?? 0} items`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"ok":true}');
+        sendJson(res, 200, { ok: true });
       } catch (e) {
-        res.writeHead(400); res.end('Invalid data: ' + e.message);
+        sendJson(res, 400, { error: { message: 'Invalid data: ' + e.message } });
       }
     });
     return;
   }
 
-  // POST /claude — proxy to Anthropic API
-  if (req.method === 'POST' && req.url === '/claude') {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const { apiKey, payload } = JSON.parse(body);
-        if (!apiKey) { res.writeHead(400); res.end('Missing apiKey'); return; }
+  // GET /ai/status — check if Ollama is reachable and the configured model exists
+  if (req.method === 'GET' && req.url === '/ai/status') {
+    let ollamaUrl;
+    try {
+      ollamaUrl = getOllamaUrl();
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message, model: OLLAMA_MODEL, url: OLLAMA_URL });
+      return;
+    }
 
-        const postData = JSON.stringify(payload);
-        const options = {
-          hostname: 'api.anthropic.com',
-          path:     '/v1/messages',
-          method:   'POST',
-          headers: {
-            'Content-Type':      'application/json',
-            'x-api-key':         apiKey,
-            'anthropic-version': '2023-06-01',
-            'Content-Length':    Buffer.byteLength(postData),
-          },
-        };
+    const transport = ollamaUrl.protocol === 'https:' ? https : http;
+    const checkReq  = transport.request(
+      { hostname: ollamaUrl.hostname, port: ollamaUrl.port || (ollamaUrl.protocol === 'https:' ? 443 : 11434), path: '/api/tags', method: 'GET' },
+      (checkRes) => {
+        let data = '';
+        checkRes.on('data', chunk => { data += chunk; });
+        checkRes.on('end', () => {
+          if (checkRes.statusCode < 200 || checkRes.statusCode >= 300) {
+            sendJson(res, 503, { ok: false, error: `Ollama status ${checkRes.statusCode}`, model: OLLAMA_MODEL, url: OLLAMA_URL });
+            return;
+          }
 
-        const proxyReq = https.request(options, (proxyRes) => {
-          let data = '';
-          proxyRes.on('data', chunk => { data += chunk; });
-          proxyRes.on('end', () => {
-            res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
-            res.end(data);
-          });
+          try {
+            const tags = JSON.parse(data || '{}');
+            const models = Array.isArray(tags.models) ? tags.models : [];
+            const names = models.map(m => m.name || m.model || '').filter(Boolean);
+            const modelAvailable = names.some(ollamaModelMatches);
+            sendJson(res, modelAvailable ? 200 : 503, {
+              ok: modelAvailable,
+              model: OLLAMA_MODEL,
+              url: OLLAMA_URL,
+              availableModels: names,
+              error: modelAvailable ? undefined : `Model ${OLLAMA_MODEL} is not pulled in Ollama`,
+            });
+          } catch (_) {
+            sendJson(res, 503, { ok: false, error: 'Could not parse Ollama /api/tags response', model: OLLAMA_MODEL, url: OLLAMA_URL });
+          }
         });
+      },
+    );
+    checkReq.setTimeout(5000, () => checkReq.destroy(new Error('Ollama status check timed out')));
+    checkReq.on('error', (e) => {
+      sendJson(res, 503, { ok: false, error: e.message, model: OLLAMA_MODEL, url: OLLAMA_URL });
+    });
+    checkReq.end();
+    return;
+  }
 
-        proxyReq.on('error', (e) => {
-          res.writeHead(500); res.end(JSON.stringify({ error: { message: e.message } }));
-        });
-
-        proxyReq.write(postData);
-        proxyReq.end();
-      } catch {
-        res.writeHead(400); res.end('Invalid request');
+  // POST /ai — proxy to Ollama OpenAI-compatible endpoint
+  if (req.method === 'POST' && req.url === '/ai') {
+    readJsonBody(req, res, ({ messages }) => {
+      if (!Array.isArray(messages)) {
+        sendJson(res, 400, { error: { message: 'messages must be an array' } });
+        return;
       }
+
+      let ollamaUrl;
+      try {
+        ollamaUrl = getOllamaUrl();
+      } catch (e) {
+        sendJson(res, 500, { error: { message: e.message } });
+        return;
+      }
+
+      const transport  = ollamaUrl.protocol === 'https:' ? https : http;
+      const postData   = JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false });
+      const options    = {
+        hostname: ollamaUrl.hostname,
+        port:     ollamaUrl.port || (ollamaUrl.protocol === 'https:' ? 443 : 11434),
+        path:     '/v1/chat/completions',
+        method:   'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      };
+
+      const proxyReq = transport.request(options, (proxyRes) => {
+        let data = '';
+        let received = 0;
+        let tooLarge = false;
+        proxyRes.on('data', chunk => {
+          if (tooLarge) return;
+          received += chunk.length;
+          if (received > MAX_JSON_BODY_BYTES) {
+            tooLarge = true;
+            sendJson(res, 502, { error: { message: 'Ollama response was too large' } });
+            proxyReq.destroy();
+            return;
+          }
+          data += chunk;
+        });
+        proxyRes.on('end', () => {
+          if (tooLarge) return;
+          res.writeHead(proxyRes.statusCode, { 'Content-Type': 'application/json' });
+          res.end(data);
+        });
+      });
+
+      proxyReq.setTimeout(120000, () => proxyReq.destroy(new Error('Ollama request timed out')));
+      proxyReq.on('error', (e) => {
+        if (!res.headersSent) sendJson(res, 502, { error: { message: 'Ollama unreachable: ' + e.message } });
+      });
+
+      proxyReq.write(postData);
+      proxyReq.end();
     });
     return;
   }
@@ -219,6 +336,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   Local:   http://localhost:${PORT}`);
   console.log(`   Network: http://${localIp}:${PORT}  ← use this on phones`);
   console.log(`📦 Database: ${DB_FILE}`);
-  console.log(`🤖 Claude proxy: http://${localIp}:${PORT}/claude`);
+  console.log(`🤖 AI proxy (Ollama): http://${localIp}:${PORT}/ai  →  ${OLLAMA_URL}  model: ${OLLAMA_MODEL}`);
   console.log(`\nKeep this terminal open while using the app.\n`);
 });

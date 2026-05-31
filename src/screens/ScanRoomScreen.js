@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useDB } from '../context/DBContext';
 import { colors, radius } from '../utils/theme';
-import { loadApiKey, identifyRoomWithClaude } from '../utils/apiKey';
+import { identifyRoom } from '../utils/ai';
 
 let localId = 0;
 const tmpId = () => `tmp_${localId++}`;
@@ -20,17 +20,9 @@ export default function ScanRoomScreen({ navigation }) {
   const webFileRef                   = useRef(null);
 
   const runScan = async (base64) => {
-    const apiKey = await loadApiKey();
-    if (!apiKey) {
-      Alert.alert('API Key Required', 'Go to Settings and add your Anthropic API key.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Settings', onPress: () => navigation.navigate('Settings') },
-      ]);
-      return;
-    }
     setPhase('scanning');
     try {
-      const result = await identifyRoomWithClaude(base64, apiKey);
+      const result = await identifyRoom(base64);
       // Attach local IDs so we can edit the UI
       const normalised = {
         roomName: result.roomName || 'New Room',
@@ -152,7 +144,7 @@ export default function ScanRoomScreen({ navigation }) {
           <Text style={s.bigIcon}>📷</Text>
           <Text style={s.idleTitle}>Photograph your storage area</Text>
           <Text style={s.idleSub}>
-            Claude AI will identify cabinets and shelves from your photo and suggest names.
+            AI will identify cabinets and shelves from your photo and suggest names.
             You can review and edit everything before it's saved.
           </Text>
 
@@ -167,7 +159,7 @@ export default function ScanRoomScreen({ navigation }) {
           <View style={s.tipBox}>
             <Text style={s.tipText}>
               💡 Tip: Include the whole wall or area in the frame for best results.
-              Good lighting helps Claude identify storage units accurately.
+              Good lighting helps the AI identify storage units accurately.
             </Text>
           </View>
         </View>
@@ -181,7 +173,7 @@ export default function ScanRoomScreen({ navigation }) {
       <SafeAreaView style={s.safe} edges={['top']}>
         <View style={s.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
-          <Text style={s.scanningText}>Claude is analysing your room…</Text>
+          <Text style={s.scanningText}>AI is analysing your room…</Text>
           <Text style={s.scanningSubText}>This may take a few seconds</Text>
         </View>
       </SafeAreaView>

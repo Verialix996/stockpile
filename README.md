@@ -22,13 +22,13 @@ Each item stores:
 Any shelf can hold containers (Bag, Box, Bin, Crate) in addition to regular shelves. Each container has a type icon and badge, holds its own items, and appears in search results with its full location path.
 
 ### 📷 Scan Room with AI
-Point your camera at a room and Claude AI will suggest a full structure — room name, cabinet names, and shelf names. Review and edit the suggestions before confirming. Creates the entire room hierarchy in one tap.
+Point your camera at a room and the AI will suggest a full structure — room name, cabinet names, and shelf names. Review and edit the suggestions before confirming. Creates the entire room hierarchy in one tap.
 
 ### 🤖 Scan Container Contents
-Point your camera at the contents of a bag or box and Claude AI will detect the items inside. Review the detected items with checkboxes, deselect anything that's wrong, and add the rest to the container in one tap.
+Point your camera at the contents of a bag or box and the AI will detect the items inside. Review the detected items with checkboxes, deselect anything that's wrong, and add the rest to the container in one tap.
 
 ### 🤖 AI Item Recognition
-Scan a photo of any individual item and Claude AI will identify it and auto-fill the name, category, and description. Available when adding a new item and on any existing item's detail screen.
+Scan a photo of any individual item and the AI will identify it and auto-fill the name, category, and description. Available when adding a new item and on any existing item's detail screen.
 
 ### ➕ Quick Quantity Controls
 Every item card has inline **− and +** buttons to update stock instantly without opening the edit form. Tap the quantity number to type an exact value. When quantity hits 0 a dialog appears — choose to remove the item or keep it and add it to the restock alert list. Available on the items list, search results, and the low stock screen.
@@ -125,12 +125,53 @@ Open **http://localhost:8082** in your browser. The data server starts automatic
 
 ---
 
-## ⚙️ AI Setup
+## ⚙️ AI Setup (local — no API key required)
 
-1. Go to [console.anthropic.com](https://console.anthropic.com)
-2. Create an account and add billing credits ($5 is plenty for extended use)
-3. Create an API key
-4. In the app tap **⚙️ Settings** → paste your key → tap **Save Key**
+AI features run through [Ollama](https://ollama.com), a local model server. No cloud account or API key needed.
+
+### 1. Install Ollama
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+Or download from [ollama.com](https://ollama.com) for macOS / Windows.
+
+### 2. Pull a vision-capable model
+
+```bash
+ollama pull llava
+```
+
+`llava` is the default. Other good options: `llava:13b`, `moondream`, `llama3.2-vision`.
+
+### 3. Start Ollama (if not already running)
+
+```bash
+ollama serve
+```
+
+Ollama listens on `http://127.0.0.1:11434` by default. The Stockpile server proxies requests to it automatically.
+
+### 4. (Optional) Use a different model or remote Ollama
+
+Set environment variables before starting the server:
+
+```bash
+OLLAMA_MODEL=llama3.2-vision OLLAMA_URL=http://192.168.1.10:11434 node server.js
+```
+
+Or in Docker:
+
+```yaml
+environment:
+  - OLLAMA_URL=http://192.168.1.10:11434
+  - OLLAMA_MODEL=llava
+```
+
+### 5. Verify in the app
+
+Open **⚙️ Settings → Local AI → Test AI Connection**. A green dot confirms Ollama is reachable and the model is ready.
 
 AI features: item photo scan, room scan, container contents scan.
 
@@ -141,7 +182,7 @@ AI features: item photo scan, room scan, container contents scan.
 ```
 stockpile/
 ├── App.js                         # Entry point + navigation stack
-├── server.js                      # SQLite data server + Claude API proxy
+├── server.js                      # SQLite data server + Ollama AI proxy
 ├── app.json                       # Expo config
 ├── package.json                   # Dependencies
 └── src/
@@ -153,7 +194,7 @@ stockpile/
     │   ├── db.js                  # Load/save data via server with local fallback
     │   ├── serverUrl.js           # Server URL storage and retrieval
     │   ├── csvIO.js               # CSV build, parse, export, import
-    │   ├── apiKey.js              # API key storage + Claude AI calls
+    │   ├── ai.js                  # Local AI calls (Ollama via server proxy)
     │   └── theme.js               # Colors, spacing, categories, constants
 
     ├── components/
@@ -170,7 +211,7 @@ stockpile/
         ├── ItemDetailScreen.js    # Item detail, photo, AI scan
         ├── LowStockScreen.js      # Out of stock + running low dashboard
         ├── ScanRoomScreen.js      # AI room scan and review
-        └── SettingsScreen.js      # Server URL, API key, CSV export/import
+        └── SettingsScreen.js      # Server URL, local AI status, CSV export/import
 
 ```
 
@@ -186,7 +227,7 @@ stockpile/
 - [expo-document-picker](https://docs.expo.dev/versions/latest/sdk/document-picker/) — CSV import on mobile
 - [expo-sharing](https://docs.expo.dev/versions/latest/sdk/sharing/) — CSV export on mobile
 - [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/) — photos
-- [Anthropic Claude API](https://docs.anthropic.com) — AI photo and room scanning
+- [Ollama](https://ollama.com) — local AI model server for photo and room scanning
 
 ---
 

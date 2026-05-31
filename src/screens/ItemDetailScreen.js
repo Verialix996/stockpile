@@ -9,7 +9,7 @@ import { useDB } from '../context/DBContext';
 import { Breadcrumb, Tag, CondDot } from '../components/UI';
 import { ItemModal } from '../components/modals/Modals';
 import { colors, COND_COLOR, radius } from '../utils/theme';
-import { loadApiKey, identifyItemWithClaude } from '../utils/apiKey';
+import { identifyItem } from '../utils/ai';
 
 export default function ItemDetailScreen({ navigation, route }) {
   const { roomId, roomName, cabinetId, cabinetName, shelfId, shelfName, itemId } = route.params;
@@ -25,28 +25,12 @@ export default function ItemDetailScreen({ navigation, route }) {
 
   const expired = item.expiry && new Date(item.expiry) < new Date();
 
-  // ── Run Claude scan on a base64 image ───────────────────────────────────────
+  // ── Run AI scan on a base64 image ───────────────────────────────────────────
   const runScan = async (base64) => {
-    const apiKey = await loadApiKey();
-    if (!apiKey) {
-      if (Platform.OS === 'web') {
-        window.alert('No API key found.\nGo to Settings → add your Anthropic API key to enable AI recognition.');
-      } else {
-        Alert.alert(
-          'API Key Required',
-          'Go to Settings and add your Anthropic API key to enable AI recognition.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Go to Settings', onPress: () => navigation.navigate('Settings') },
-          ]
-        );
-      }
-      return;
-    }
     setScanning(true);
     setScanResult(null);
     try {
-      const result = await identifyItemWithClaude(base64, apiKey);
+      const result = await identifyItem(base64);
       setScanResult(result);
     } catch (err) {
       if (Platform.OS === 'web') {
@@ -200,7 +184,7 @@ export default function ItemDetailScreen({ navigation, route }) {
         {/* Scan result */}
         {scanResult && (
           <View style={s.resultCard}>
-            <Text style={s.resultTitle}>✨ Claude identified this item</Text>
+            <Text style={s.resultTitle}>✨ AI identified this item</Text>
             <View style={s.resultRow}>
               <Text style={s.resultLabel}>NAME</Text>
               <Text style={s.resultValue}>{scanResult.name}</Text>
